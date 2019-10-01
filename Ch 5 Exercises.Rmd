@@ -1,0 +1,249 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+##5.2.4 Exercises
+
+###Question 1
+```{r prereq}
+install.packages("nycflights13")
+library(dplyr)
+library(nycflights13)
+library(tidyverse)
+flights
+```
+(1) Arrival delay of two or more hours
+```{r}
+head(flights)
+filter(flights, arr_delay >= 120) 
+```
+(2) Flew to Houston (IAH or HOU)
+```{r}
+filter(flights, dest %in% c("IAH","HOU"))
+```
+(3) Were operated by United, America, or Delta
+```{r}
+filter(flights, carrier %in% c("UA", "AA", "DL"))
+```
+(4) Departed in summer (July, August, September)
+```{r}
+filter(flights, month %in% c(7,8,9))
+```
+(5) Arrived more than two hours late but didn't leave late
+```{r}
+filter(flights, arr_delay>120 & dep_delay<=0)
+```
+(6) Were delayed by at least an hour but made up over 30 minutes in flight
+```{r}
+filter(flights, dep_delay>=60 & (dep_delay-arr_delay)>=30)
+```
+(7) Departed between midnight and 6am (inclusive)
+```{r}
+filter(flights, dep_time==2400 | dep_time<=600)
+```
+
+###Question 2
+```{r}
+?between()
+```
+This function is written in the form "between(x, left, right)." In essense, this is the same as the inequality left<=x<=right. Let's use this function for challenge 4!
+```{r}
+filter(flights, between(month, 7, 9))
+```
+
+###Question 3
+```{r}
+nrow(filter(flights, is.na(dep_time)==TRUE))
+```
+There are 8255 flights missing departure time.
+```{r}
+filter(flights, is.na(dep_time)==TRUE)
+```
+Looking at the filtered data, it seems that flights that liacked a departure time also lacked an arrival time. i assume these were cancelled flights?
+
+###Question 4
+```{r}
+NA^0
+NA | TRUE
+FALSE & NA
+```
+Well...NA represents an "unknown value." It doesn't necessarily mean that there's NO value. We're not operating on empty space. Anyway, those three expressions above are all cases of the values are irrelevant.   
+... NA^0 = NA^(n-n) = (NA^n)/(NA^n) = 1
+... By properties of OR operators, if one value is TRUE, than the whole thing is TRUE NO MATTER WHAT  
+... By properties of AND operators, if one value is FALSE, then the whole thing is FALSE NO MATTER WHAT
+```{r}
+NA*0
+```
+Now...this one is tricky. 0 times anything is 0, no? Well, in the previous cases, the NA values was either cancelled out or completely disregarded. In other words, it never had an active role in the operation; it was never used. In this case, however, the NA value is still actively used in the operation. Because it is technically used, it will output NA. (Okay, listen, I'm just spitballing here. I honestly don't know)  
+
+##5.3.1 Exercises
+###Question 1
+```{r}
+arrange(flights, desc(is.na(dep_time)))
+```
+So, it starts with observations where dep_time==NA is TRUE, and then they go in descending order???
+
+###Question 2
+Flights from most to least delayed (departure)
+```{r}
+arrange(flights, desc(dep_delay))
+```
+Flights that left the earliest
+```{r}
+arrange(flights, dep_delay)
+```
+
+###Question 3
+Flights from fastest to slowest (uhh, I don't know what they mean by "fastest"...)
+```{r}
+arrange(flights, arr_delay-dep_delay)
+```
+
+###Question 4
+Longest and shortest flights (are we talking about air time length? Whatever, that's what I'm doing anyway!)
+```{r}
+arrange(flights, air_time)
+arrange(flights, desc(air_time))
+```
+
+##5.4.1 Exercises
+###Question 1
+Different ways to select dep_time, dep_delay, arr_time, arr_delay:
+```{r}
+select(flights, dep_time, dep_delay, arr_time, arr_delay)
+select(flights, dep_time:arr_delay, -c(sched_dep_time, sched_arr_time))
+select(flights, dep_time:arr_delay, -starts_with("sched"))
+select(flights, starts_with("dep"), starts_with("arr"))
+```
+
+###Question 2
+```{r}
+select(flights, dep_time, dep_time)
+```
+If you include the name of a variable multiple times in a select() call...it'll will just slect it once!
+
+###Question 3
+```{r}
+vars <- c("year", "month", "day", "dep_delay", "arr_delay")
+select(flights, one_of(vars))
+```
+Aha! As the above code chunk shows, the "one_of()" function selects variables that contain ONE OF the strings. I mean...I think it's pretty self explanatory? 
+
+###Question 4
+```{r}
+select(flights, contains("TIME"))
+```
+The result of the previous code DID surprise me! I suppose I expected that the strings used in select() would be case sensitive. Apparently, that is not the case.
+
+##5.5.2 Exercises
+###Question 1
+Convert dep_time and sched_dep_time to minutes since midnight.
+```{r}
+transmute(flights, dep_time= ((dep_time%/%100)*60 + dep_time%%100), sched_dep_time= ((sched_dep_time%/%100)*60 + sched_dep_time%%100))
+```
+
+###Question 2
+Compare air_time with arr_time-dep_time
+```{r}
+?flights
+flights
+df<-select(flights, dep_time, arr_time, air_time)
+df
+mutate(df, arr_dep_diff=arr_time-dep_time)
+```
+You would expect air_time = arr_time-dep_time. Since dep_time and arr_time are in hour/minute format whereas air_time is in minute format, they will not match. Let's fix it!
+```{r}
+df<-transmute(df, dep_time= ((dep_time%/%100)*60 + dep_time%%100), arr_time= ((arr_time%/%100)*60 + arr_time%%100), air_time=air_time)
+df
+mutate(df, arr_dep_diff=arr_time-dep_time)
+```
+Uh...well, that should have work! I suppose the time between departure and arrival time is not solely spent in the air? Sometimes, you do a lot of sitting around. When, exactly, do we consider a plane to have "departed" and "arrived"?
+
+###Question 3
+Compare dep_time, sched_dep_time, dep_delay:
+```{r}
+select(flights, contains("dep"))
+```
+I assume dep_time = sched_dep_time + dep_delay ... let's see!
+```{r}
+transmute(flights, dep_time=dep_time, sch_dep=sched_dep_time+dep_delay)
+```
+I was correct!
+
+###Question 4
+10 most delayed flights
+```{r}
+df2<-mutate(flights, tot_delay=dep_delay+arr_delay)
+arrange(df2, desc(tot_delay))
+```
+Uh, since there were no ties, I didn't bother. Anyway, here's an example of min_rank(): 
+```{r}
+?min_rank()
+y<-c(1,4,7,3,5,3)
+min_rank(y)
+```
+
+###Question 5 (WAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)
+```{r}
+1:3 + 1:10
+```
+
+
+###Question 6
+Trig functions provided by R include the basics (sine, cosine, tangent):
+```{r}
+z<-c(1,-1,0.5,2)
+sin(z)
+cos(z)
+tan(z)
+```
+The inverses (arcsine, arccosine, arctangent):
+```{r}
+asin(z)
+acos(z)
+atan(z)
+```
+For angles in pi, not radians (i.e. sinpi(x)=sin(pi*x))
+```{r}
+sinpi(1/2)
+cospi(2)
+tanpi(1/4)
+```
+
+##5.6.7 Exercises
+###Question 1
+A flight is 15 minutes early 50% of the time, and 15 minutes late 50% of the time
+```{r}
+flights
+by_day <- group_by(flights, year, month, day)
+by_day
+summarise(by_day, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+
+###Question 2
+
+###Question 3
+
+###Question 4
+
+###Question 5
+
+###Question 6
+
+##5.7.1 Exercises
+###Question 1
+
+###Question 2
+
+###Question 3
+
+###Question 4
+
+###Question 5
+
+###Question 6
+
+###Question 7
+
+###Question 8
